@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一般行為準則與紀律評分表 - 互動探索平台</title>
+    
+    <!-- Chosen Palette: 溫暖中性色調 (Warm Neutrals) 搭配 翡翠綠/琥珀色/紅色 作為表現層級提示 -->
+    
+    <!-- Application Structure Plan: 
+    此 SPA 採用「導覽分頁」架構。
+    1. 頂部導覽列：切換「準則探索」與「行為分析」。
+    2. 準則探索：靜態資料查閱。
+    3. 行為分析：正向積分邏輯雷達圖。
+    
+    視覺邏輯更新：雷達圖改為「正向表現積分」。
+    - 滿分 (3分) = 良好表現
+    - 0 分 = 嚴重違規
+    這使得「全滿的雷達圖」代表最完美的行為表現，符合多數績效評估系統的視覺直覺。
+    -->
+    
+    <!-- Visualization & Content Choices: 
+    1. 導覽切換：Vanilla JS 切換 display 狀態。
+    2. 行為分析：Chart.js 雷達圖。數據映射改為 (3 - 違規等級)，讓正向表現佔據更大面積。
+    -->
+    
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        stone: {
+                            50: '#fafaf9',
+                            100: '#f5f5f4',
+                            200: '#e7e5e4',
+                            700: '#44403c',
+                            800: '#292524',
+                            900: '#1c1917',
+                        },
+                        level1: { light: '#fef3c7', border: '#fbbf24', text: '#92400e' },
+                        level2: { light: '#ffedd5', border: '#fb923c', text: '#9a3412' },
+                        level3: { light: '#fee2e2', border: '#f87171', text: '#991b1b' },
+                        success: { light: '#ecfdf5', border: '#10b981', text: '#065f46' }, // Green for Good
+                    },
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #fafaf9;
+            color: #292524;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 40vh;
+            min-height: 300px;
+            max-height: 450px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .nav-tab.active {
+            color: #1c1917;
+            border-bottom: 3px solid #44403c;
+            background-color: rgba(0,0,0,0.03);
+        }
+
+        .category-tab.active {
+            background-color: #e7e5e4;
+            border-left: 4px solid #44403c;
+            font-weight: 700;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col">
+
+    <!-- Header & Main Navigation -->
+    <header class="bg-stone-900 text-stone-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3">
+                <span>⚖️</span> 一般行為準則互動探索平台
+            </h1>
+        </div>
+        
+        <nav class="bg-stone-100 border-b border-stone-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex">
+                    <button onclick="switchMainTab('explorer')" id="tab-nav-explorer" class="nav-tab active px-6 py-4 text-stone-600 font-bold hover:text-stone-900 transition-all flex items-center gap-2">
+                        <span>🔍</span> 準則分類探索
+                    </button>
+                    <button onclick="switchMainTab('profiler')" id="tab-nav-profiler" class="nav-tab px-6 py-4 text-stone-600 font-bold hover:text-stone-900 transition-all flex items-center gap-2 border-l border-stone-200">
+                        <span>🕸️</span> 行為表現分析
+                    </button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        
+        <!-- Tab 1: Rubric Explorer -->
+        <section id="content-explorer" class="tab-content active fade-in">
+            <div class="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+                <div class="p-6 md:p-8 border-b border-stone-100 bg-stone-50/50">
+                    <h2 class="text-2xl font-bold text-stone-800">準則分類探索器</h2>
+                    <p class="text-stone-600 mt-2">
+                        本區塊詳細列出各類行為在不同嚴重程度下的表現。請點選左側類別，右側將展示具體描述。
+                    </p>
+                </div>
+
+                <div class="flex flex-col md:flex-row min-h-[500px]">
+                    <div class="w-full md:w-1/3 lg:w-1/4 bg-stone-50 border-r border-stone-200 flex flex-col" id="category-tabs">
+                        <!-- JS Injected -->
+                    </div>
+                    <div class="w-full md:w-2/3 lg:w-3/4 p-6 md:p-8 bg-white flex flex-col" id="category-content">
+                        <!-- JS Injected -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 2: Behavior Profiler -->
+        <section id="content-profiler" class="tab-content fade-in">
+            <div class="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+                <div class="p-6 md:p-8 border-b border-stone-100 bg-stone-50/50">
+                    <h2 class="text-2xl font-bold text-stone-800">行為表現積分分析</h2>
+                    <p class="text-stone-600 mt-2">
+                        此分析儀採用<b>正向積分</b>邏輯：當學生維持「良好表現」時，積分最高（3分），雷達圖覆蓋面積最大；反之，違規愈嚴重，積分愈低。這能直觀地展示學生在各項準則中的合規程度。
+                    </p>
+                </div>
+
+                <div class="flex flex-col lg:flex-row p-6 md:p-8 gap-8 items-start">
+                    <!-- Controls -->
+                    <div class="w-full lg:w-1/2 space-y-4" id="profiler-controls">
+                        <div class="bg-stone-50 p-4 rounded-lg border border-stone-200 mb-6 flex justify-between items-center">
+                            <div>
+                                <h3 class="font-bold text-stone-700">評定目前行為狀態</h3>
+                                <p class="text-xs text-stone-500">請選擇觀察到的違規等級</p>
+                            </div>
+                            <button id="reset-profiler" class="px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-700 rounded text-sm transition-colors font-medium">🔄 重置狀態</button>
+                        </div>
+                        <!-- JS Injected -->
+                    </div>
+
+                    <!-- Visual Representation -->
+                    <div class="w-full lg:w-1/2 flex flex-col items-center justify-center bg-stone-50 rounded-xl p-6 border border-stone-100">
+                        <h3 class="font-bold text-stone-800 mb-4">行為合規性雷達圖 (面積愈大愈好)</h3>
+                        <div class="chart-container">
+                            <canvas id="behaviorRadarChart"></canvas>
+                        </div>
+                        <div class="mt-8 grid grid-cols-2 gap-4 text-xs font-medium w-full max-w-sm">
+                            <div class="flex items-center gap-2 p-2 bg-emerald-50 rounded border border-emerald-200"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> 良好 (3分)</div>
+                            <div class="flex items-center gap-2 p-2 bg-amber-50 rounded border border-amber-200"><span class="w-3 h-3 rounded-full bg-amber-400"></span> 初步警告 (2分)</div>
+                            <div class="flex items-center gap-2 p-2 bg-orange-50 rounded border border-orange-200"><span class="w-3 h-3 rounded-full bg-orange-400"></span> 次要違規 (1分)</div>
+                            <div class="flex items-center gap-2 p-2 bg-red-50 rounded border border-red-200"><span class="w-3 h-3 rounded-full bg-red-500"></span> 嚴重違規 (0分)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-stone-900 text-stone-500 py-8 text-center text-sm">
+        <div class="max-w-7xl mx-auto px-4">
+            <p>一般行為準則與紀律評分表互動平台 &copy; 2026</p>
+            <p class="mt-1">視覺化說明：雷達圖採用正向積分 (3-0)，圖形愈趨向外圈代表行為愈符合規範。</p>
+        </div>
+    </footer>
+
+    <script>
+        // --- 1. Data Definitions ---
+        const rubricData = [
+            { id: 'respect', name: '尊重與態度', icon: '🗣️', desc: '規範對待他人之言語與態度。', levels: [
+                { level: 1, title: '初步警告', text: '輕微頂嘴；態度輕蔑；偶發的無禮行為。' },
+                { level: 2, title: '次要違規', text: '重複的不服從；使用不當語言；無視成人指令。' },
+                { level: 3, title: '嚴重違規', text: '明確的對抗；攻擊性或敵對性語言；對教職員或同儕極度不敬。' }
+            ]},
+            { id: 'environment', name: '課堂環境', icon: '🏫', desc: '規範學習空間中的專注度。', levels: [
+                { level: 1, title: '初步警告', text: '短暫中斷教學；非專注行為（例如：擺弄私人物品）。' },
+                { level: 2, title: '次要違規', text: '頻繁擾亂；持續干擾他人學習。' },
+                { level: 3, title: '嚴重違規', text: '持續干擾妨礙教學；蓄意無視先前的警告。' }
+            ]},
+            { id: 'integrity', name: '誠實誠信', icon: '🤝', desc: '規範學術表現與誠實度。', levels: [
+                { level: 1, title: '初步警告', text: '輕微隱瞞事實；未能立即承擔責任。' },
+                { level: 2, title: '次要違規', text: '小型作業學術誠信問題；對行為的不實陳述。' },
+                { level: 3, title: '嚴重違規', text: '抄襲；評量嚴重作弊；影響社群的習慣性不誠實。' }
+            ]},
+            { id: 'tech', name: '科技與財產', icon: '💻', desc: '規範設備及財產使用。', levels: [
+                { level: 1, title: '初步警告', text: '未經授權使用課堂材料；對財產的輕微疏忽。' },
+                { level: 2, title: '次要違規', text: '意外損壞學校設備；濫用私人/個人物品。' },
+                { level: 3, title: '嚴重違規', text: '蓄意破壞；竊盜；長期不遵守科技政策。' }
+            ]},
+            { id: 'responsibility', name: '責任感', icon: '📚', desc: '規範課業準備與參與。', levels: [
+                { level: 1, title: '初步警告', text: '忘記帶用品（一次性）；偶爾缺交或未完成家庭作業。' },
+                { level: 2, title: '次要違規', text: '持續缺乏準備；錯過多個截止日期；作業表現不達標。' },
+                { level: 3, title: '嚴重違規', text: '長期拒絕參與任務或攜帶所需材料。' }
+            ]},
+            { id: 'pattern', name: '行為模式', icon: '🔄', desc: '評估行為的重複性。', levels: [
+                { level: 1, title: '初步警告', text: '偶爾未能遵守規則；對糾正反應良好。' },
+                { level: 2, title: '次要違規', text: '有多項警告紀錄；行為擾亂模式初現。' },
+                { level: 3, title: '嚴重違規', text: '在介入後仍持續無視課堂期望。' }
+            ]}
+        ];
+
+        // state.violationLevels stores values 0 (none) to 3 (severe)
+        const state = {
+            violationLevels: { respect: 0, environment: 0, integrity: 0, tech: 0, responsibility: 0, pattern: 0 }
+        };
+
+        const levelColors = {
+            1: { bg: 'bg-level1-light', border: 'border-level1-border', text: 'text-level1-text', badge: 'bg-amber-100 text-amber-800' },
+            2: { bg: 'bg-level2-light', border: 'border-level2-border', text: 'text-level2-text', badge: 'bg-orange-100 text-orange-800' },
+            3: { bg: 'bg-level3-light', border: 'border-level3-border', text: 'text-level3-text', badge: 'bg-red-100 text-red-800' }
+        };
+
+        let radarChartInstance = null;
+
+        // --- 2. Main Tab Logic ---
+        function switchMainTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            
+            document.getElementById(`content-${tabId}`).classList.add('active');
+            document.getElementById(`tab-nav-${tabId}`).classList.add('active');
+            
+            if (tabId === 'profiler' && radarChartInstance) {
+                radarChartInstance.resize();
+            }
+        }
+
+        // --- 3. Explorer Logic ---
+        function initExplorer() {
+            const tabsContainer = document.getElementById('category-tabs');
+            rubricData.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.className = `category-tab w-full text-left px-6 py-4 border-b border-stone-200 hover:bg-stone-100 transition-colors flex items-center gap-3 text-stone-700`;
+                btn.dataset.id = cat.id;
+                btn.innerHTML = `<span class="text-xl">${cat.icon}</span> <span>${cat.name}</span>`;
+                btn.onclick = () => selectCategory(cat.id);
+                tabsContainer.appendChild(btn);
+            });
+            selectCategory(rubricData[0].id);
+        }
+
+        function selectCategory(id) {
+            document.querySelectorAll('.category-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.id === id);
+            });
+
+            const category = rubricData.find(c => c.id === id);
+            const contentContainer = document.getElementById('category-content');
+            
+            let html = `
+                <div class="mb-8 fade-in">
+                    <h3 class="text-3xl font-bold text-stone-800 mb-2">${category.icon} ${category.name}</h3>
+                    <p class="text-stone-500">${category.desc}</p>
+                </div>
+                <div class="space-y-4">
+            `;
+
+            category.levels.forEach(lvl => {
+                const colors = levelColors[lvl.level];
+                html += `
+                    <div class="rounded-xl border-l-4 ${colors.border} ${colors.bg} p-5 shadow-sm fade-in">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-xs font-bold px-2 py-1 rounded ${colors.badge}">違規第 ${lvl.level} 級</span>
+                            <h4 class="font-bold ${colors.text}">${lvl.title}</h4>
+                        </div>
+                        <p class="${colors.text} text-base">${lvl.text}</p>
+                    </div>
+                `;
+            });
+
+            contentContainer.innerHTML = html;
+        }
+
+        // --- 4. Profiler Logic ---
+        function initProfiler() {
+            const controlsContainer = document.getElementById('profiler-controls');
+            rubricData.forEach(cat => {
+                const html = `
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white border border-stone-200 rounded-lg">
+                        <label class="font-medium text-stone-700 flex items-center gap-2">
+                            ${cat.icon} ${cat.name}
+                        </label>
+                        <select onchange="updateProfileState('${cat.id}', this.value)" class="profiler-select bg-stone-50 border border-stone-300 text-stone-800 text-sm rounded-lg p-2 w-full sm:w-64 outline-none focus:ring-2 focus:ring-stone-400">
+                            <option value="0">良好表現 (積分 3)</option>
+                            <option value="1">初步警告 (積分 2)</option>
+                            <option value="2">次要違規 (積分 1)</option>
+                            <option value="3">嚴重違規 (積分 0)</option>
+                        </select>
+                    </div>
+                `;
+                controlsContainer.insertAdjacentHTML('beforeend', html);
+            });
+
+            document.getElementById('reset-profiler').onclick = () => {
+                Object.keys(state.violationLevels).forEach(k => state.violationLevels[k] = 0);
+                document.querySelectorAll('.profiler-select').forEach(s => s.value = "0");
+                updateChart();
+            };
+
+            renderChart();
+        }
+
+        function updateProfileState(id, val) {
+            state.violationLevels[id] = parseInt(val, 10);
+            updateChart();
+        }
+
+        function getPositiveScores() {
+            // Map 0 violation to 3 score, 3 violation to 0 score
+            return rubricData.map(c => 3 - state.violationLevels[c.id]);
+        }
+
+        function renderChart() {
+            const ctx = document.getElementById('behaviorRadarChart').getContext('2d');
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: rubricData.map(c => c.name),
+                    datasets: [{
+                        label: '正向表現積分',
+                        data: getPositiveScores(),
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)', // Emerald-500 light
+                        borderColor: 'rgba(16, 185, 129, 0.8)',
+                        pointBackgroundColor: '#065f46', // Success-text
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            min: 0, max: 3,
+                            ticks: { 
+                                stepSize: 1, 
+                                display: true,
+                                font: { size: 10 },
+                                backdropColor: 'transparent',
+                                callback: function(value) {
+                                    if(value === 3) return '良好';
+                                    if(value === 0) return '嚴重';
+                                    return value;
+                                }
+                            },
+                            pointLabels: { font: { size: 13, weight: 'bold' }, color: '#44403c' },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        }
+                    },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const score = context.raw;
+                                    const violationLvl = 3 - score;
+                                    let status = "良好表現";
+                                    if(violationLvl === 1) status = "初步警告";
+                                    if(violationLvl === 2) status = "次要違規";
+                                    if(violationLvl === 3) status = "嚴重違規";
+                                    return ` 表現積分: ${score} (${status})`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart() {
+            if (!radarChartInstance) return;
+            const scores = getPositiveScores();
+            radarChartInstance.data.datasets[0].data = scores;
+            
+            // Dynamic styling: More area/green = good, less area/red = caution
+            const avgScore = scores.reduce((a,b) => a+b, 0) / scores.length;
+            
+            if (avgScore >= 2.5) {
+                radarChartInstance.data.datasets[0].borderColor = '#10b981'; // Green
+                radarChartInstance.data.datasets[0].backgroundColor = 'rgba(16, 185, 129, 0.2)';
+            } else if (avgScore >= 1.5) {
+                radarChartInstance.data.datasets[0].borderColor = '#f59e0b'; // Amber
+                radarChartInstance.data.datasets[0].backgroundColor = 'rgba(245, 158, 11, 0.2)';
+            } else {
+                radarChartInstance.data.datasets[0].borderColor = '#ef4444'; // Red
+                radarChartInstance.data.datasets[0].backgroundColor = 'rgba(239, 68, 68, 0.2)';
+            }
+            
+            radarChartInstance.update();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initExplorer();
+            initProfiler();
+        });
+    </script>
+</body>
+</html>
